@@ -1,0 +1,4 @@
+.env
+chat_history.db
+settings.db
+__pycache__
