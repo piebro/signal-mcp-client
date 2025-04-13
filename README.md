@@ -36,9 +36,11 @@ For each model provider you will need to set the API key in .env.
 
 ## Development
 
-Run these commands for formatting and linting
+### Formatting and Linting
+
+The code is formatted and linted with ruff:
 
 ```bash
-uvx ruff format --line-length=120
-uvx ruff check --fix
+uv run ruff format
+uv run ruff check --fix
 ```

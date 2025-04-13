@@ -1,5 +1,4 @@
 .env
-chat_history.db
-settings.db
+sessions/*
 __pycache__
 config.json

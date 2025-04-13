@@ -10,4 +10,39 @@ dependencies = [
     "websockets",
     "requests",
     "litellm",
+    "ruff",
 ]
+authors = [
+    {name = "Piet Brömmel", email = "piet.broemmel@gmail.com"}
+]
+keywords = ["mcp", "client", "signal", "bot", "ai"]
+license = "MIT"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/piebro/signal-mcp-client"
+"Bug Tracker" = "https://github.com/piebro/signal-mcp-client/issues"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "F",        # Pyflakes
+    "UP",       # pyupgrade
+    "B018",     # Found useless expression.
+    "I",        # isort
+    "RUF",      # ruff
+]
+ignore = [
+  "E501", # line too long - will be fixed in format
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
