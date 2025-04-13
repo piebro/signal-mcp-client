@@ -1,0 +1,14 @@
+{
+  "servers": [
+    {
+      "name": "echo-mcp-server-for-testing",
+      "command": "uvx",
+      "args": [
+          "echo-mcp-server-for-testing"
+      ],
+      "env": {
+          "SECRET_KEY": "123456789"
+      }
+    }
+  ]
+}

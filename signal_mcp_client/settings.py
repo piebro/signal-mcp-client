@@ -15,11 +15,11 @@ SETTINGS_TABLE_SQL = """
     );
 """
 
-AVAILABLE_MODELS = ["claude-3-5-haiku-latest", "claude-3-7-sonnet-latest", "mistral/mistral-large-latest"]
+AVAILABLE_MODELS = ["claude-3-7-sonnet-latest", "claude-3-5-haiku-latest", "mistral/mistral-large-latest"]
 
 DEFAULT_SETTINGS = {
     "system_prompt": "None",
-    "model_name": AVAILABLE_MODELS[-1],
+    "model_name": AVAILABLE_MODELS[0],
     "llm_chat_message_context_limit": 30,
 }
 

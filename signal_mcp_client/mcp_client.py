@@ -3,7 +3,7 @@ import json
 from contextlib import AsyncExitStack
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from litellm import completion
+from litellm import completion, AuthenticationError
 
 from settings import get_settings, update_settings, reset_settings, AVAILABLE_MODELS
 import history
@@ -204,9 +204,17 @@ async def process_conversation_turn(session_id, tools, tool_name_to_session, use
 
                     history.add_tool_response(session_id, tool_id, tool_name, tool_result_content)
                     yield {"tool_result": f"{tool_result_content}"}
+    
+    except AuthenticationError as e:
+        error_message = f"AuthenticationError: Please check your API key for the model: {settings['model_name']}, error: {e}"
+        yield {"text": error_message}
+        print(error_message)
+        return
 
     except Exception as e:
-        print(f"ERROR during Anthropic API call: {e}")
+        error_message = f"ERROR during LLM API call: {e}"
+        yield {"text": error_message}
+        print(error_message)
         return
 
     if tool_used:
