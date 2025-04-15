@@ -51,7 +51,7 @@ I recommend to use an extra phone number for the bot, so you don't have to use y
 Add the MCP server in the `config.json` file.
 
 Here are some example servers I use:
-- [watch-movie-mcp-server](https://github.com/piebro/watch-movie-mcp-server): Start a Movie using your bot (my Raspberry Pi is connected to a beamer)
+- [vlc-mcp-server](https://github.com/piebro/vlc-mcp-server): An MCP Server to play and control local movies using VLC.
 
 ## Using different LLM models
 
