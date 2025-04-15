@@ -67,6 +67,10 @@ Common environment variables for API keys in `.env`:
 - Gemini models: `GEMINI_API_KEY`
 - Groq models: `GROQ_API_KEY`
 
+## Contributing
+
+Contributions to this project are welcome. Feel free to report bugs, suggest ideas, or create merge requests.
+
 ## Development
 
 ### Formatting and Linting
@@ -168,3 +172,7 @@ This setup assumes that you have completed the setup steps and your project is l
     journalctl --user -u signal-cli-rest-api.service -f
     journalctl --user -u signal-mcp-client.service -f
     ```
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
