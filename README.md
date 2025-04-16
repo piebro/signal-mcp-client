@@ -28,12 +28,14 @@ I recommend to use an extra phone number for the bot, so you don't have to use y
     sudo apt install podman
     curl -LsSf https://astral.sh/uv/install.sh | sh
     ```
-5.  Replace `/home/USER_NAME` with your actual username and start the [Signal CLI Rest Server](https://github.com/bbernhard/signal-cli-rest-api) container:
+5.  Start the [Signal CLI Rest Server](https://github.com/bbernhard/signal-cli-rest-api) container:
     ```bash
+    mkdir -p $HOME/.local/share/signal-api
     podman run \
-        --name signal-cli-api-temp \
+        --name signal-cli-api \
+        --replace \
         -p 8080:8080 \
-        -v /home/USER_NAME/.local/share/signal-api:/home/.local/share/signal-cli \
+        -v $HOME/.local/share/signal-api:/home/.local/share/signal-cli \
         -e 'MODE=json-rpc' \
         docker.io/bbernhard/signal-cli-rest-api:latest
     ```
@@ -119,6 +121,7 @@ This setup assumes that you have completed the setup steps and your project is l
 
     ExecStart=/usr/bin/podman run --name signal-cli-api \\
         -p 127.0.0.1:8080:8080 \\
+        --replace \\
         -v /home/$USER/.local/share/signal-api:/home/.local/share/signal-cli \\
         -e MODE=json-rpc \\
         docker.io/bbernhard/signal-cli-rest-api:latest
@@ -141,6 +144,7 @@ This setup assumes that you have completed the setup steps and your project is l
     [Service]
     WorkingDirectory=/home/$USER/signal-mcp-client
     EnvironmentFile=/home/$USER/signal-mcp-client/.env
+    Environment="PATH=/usr/bin:/home/$USER/.local/bin:%{PATH}"
     SyslogIdentifier=signal-mcp-client
 
     Restart=on-failure
