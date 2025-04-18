@@ -1,9 +1,12 @@
 import base64
 import json
+import logging
 from pathlib import Path
 
 import history
 from litellm import completion
+
+logger = logging.getLogger("signal_mcp_client")
 
 AVAILABLE_MODELS = json.load(open(Path(__file__).parent.parent / "available_model.json"))
 
@@ -107,7 +110,7 @@ def get_session_settings(session_id):
 
 
 def update_settings(session_id, **tool_arguments):
-    print(f"update settings with: {tool_arguments}")
+    logger.info(f"update settings with: {tool_arguments}")
     session_settings = get_session_settings(session_id)
     session_settings.update(tool_arguments)
 
@@ -119,7 +122,7 @@ def update_settings(session_id, **tool_arguments):
 
 
 def get_settings(session_id):
-    print(f"get settings for session: {session_id}")
+    logger.info(f"get settings for session: {session_id}")
     settings = get_default_settings()
     session_settings = get_session_settings(session_id)
     settings.update(session_settings)
@@ -127,7 +130,7 @@ def get_settings(session_id):
 
 
 def reset_settings(session_id):
-    print(f"reset settings for session: {session_id}")
+    logger.info(f"reset settings for session: {session_id}")
     session_settings_path = Path(__file__).parent.parent / "sessions" / session_id / "settings.json"
     if session_settings_path.exists():
         session_settings_path.unlink()
@@ -136,7 +139,7 @@ def reset_settings(session_id):
 
 
 def reset_chat_history(session_id):
-    print(f"reset chat history for session: {session_id}")
+    logger.info(f"reset chat history for session: {session_id}")
     history.clear_history(session_id)
     return True, "chat history reset"
 

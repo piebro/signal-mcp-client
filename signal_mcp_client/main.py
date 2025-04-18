@@ -15,33 +15,36 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="[%(levelname)s] [%(name)s] %(message)s", handlers=[logging.StreamHandler()]
-)
-logging.getLogger("httpx").setLevel("WARNING")
-logging.getLogger("LiteLLM").setLevel("WARNING")
-logger = logging.getLogger("signal_mcp_client")
-
 WS_BASE_URL = "ws://localhost:8080"
 HTTP_BASE_URL = "http://localhost:8080"
+CLIENT_LOG_LEVEL = logging.DEBUG
+SERVER_LOG_LEVEL = logging.DEBUG
+
+log_format = "[%(levelname)s] [%(name)s] %(message)s"
+formatter = logging.Formatter(log_format)
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(formatter)
+
+client_logger = logging.getLogger("signal_mcp_client")
+client_logger.addHandler(handler)
+client_logger.setLevel(CLIENT_LOG_LEVEL)
 
 SIGNAL_PHONE_NUMBER = os.getenv("SIGNAL_PHONE_NUMBER")
 if not SIGNAL_PHONE_NUMBER:
-    logger.error("SIGNAL_PHONE_NUMBER not found in environment variables.")
+    client_logger.error("SIGNAL_PHONE_NUMBER not found in environment variables.")
     sys.exit(1)
 
 
 def send_message(recipient, content):
     """Send a text message using the Signal API (Synchronous)"""
     if not content or not content.strip():
-        logger.info(f"Skipping empty text message send to {recipient}")
+        client_logger.info(f"Skipping empty text message send to {recipient}")
         return
     url = f"{HTTP_BASE_URL}/v2/send"
     payload = {"number": SIGNAL_PHONE_NUMBER, "recipients": [recipient], "message": content}
     response = requests.post(url, json=payload, timeout=20)
     response.raise_for_status()
-    logger.info(f"Successfully sent text message to {recipient}")
+    client_logger.info(f"Successfully sent text message to {recipient}")
 
 
 def send_attachment(session_id, recipient, content, filenames):
@@ -61,7 +64,7 @@ def send_attachment(session_id, recipient, content, filenames):
 
     response = requests.post(url, json=payload, timeout=30)
     response.raise_for_status()
-    logger.info(f"Successfully sent message and attachments {filenames} to {recipient}")
+    client_logger.info(f"Successfully sent message and attachments {filenames} to {recipient}")
 
 
 def save_image_attachment(session_id, attachment_id):
@@ -78,7 +81,7 @@ def save_image_attachment(session_id, attachment_id):
 
     with open(image_path, "wb") as f:
         f.write(attachment_data)
-    logger.info(f"Successfully fetched and saved attachment ID: {attachment_id} to {image_path}")
+    client_logger.info(f"Successfully fetched and saved attachment ID: {attachment_id} to {image_path}")
     return image_path.name
 
 
@@ -90,12 +93,12 @@ def save_attachments(session_id, attachments):
         if content_type.startswith("image/") and attachment_id:
             image_filenames.append(save_image_attachment(session_id, attachment_id))
         else:
-            logger.info("Ignoring attachments other then images")
+            client_logger.info("Ignoring attachments other then images")
     return image_filenames
 
 
 async def process_signal_message(websocket, tools, tool_name_to_session):
-    logger.info("Waiting for Signal messages...")
+    client_logger.info("Waiting for Signal messages...")
     # if a new message is received, before the previous one is processed, the message is added to the queue
     async for message in websocket:
         data = json.loads(message)
@@ -109,7 +112,7 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
             continue
 
         session_id = sender
-        logger.info(f"\n--- New message from {session_id} ---")
+        client_logger.info(f"--- New message from {session_id} ---")
 
         image_filenames = save_attachments(session_id, attachments)
 
@@ -119,7 +122,7 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
             await asyncio.to_thread(send_message, sender, img_filenames_str)
 
         if user_message:
-            logger.info(f"Received (processed): {user_message}")
+            client_logger.info(f"Received (processed): {user_message}")
 
         async for response in mcp_client.process_conversation_turn(
             session_id, tools, tool_name_to_session, user_message
@@ -131,25 +134,25 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
             elif "text" in response:
                 await asyncio.to_thread(send_message, sender, response["text"])
 
-        logger.info(f"--- Finished processing for {session_id} ---")
+        client_logger.info(f"--- Finished processing for {session_id} ---")
 
 
 async def main():
     async with AsyncExitStack() as exit_stack:
-        logger.info("Starting MCP servers")
-        tool_name_to_session, tools = await mcp_client.start_servers(exit_stack)
+        client_logger.info("Starting MCP servers")
+        tool_name_to_session, tools = await mcp_client.start_servers(exit_stack, handler, SERVER_LOG_LEVEL)
 
         websocket_url = f"{WS_BASE_URL}/v1/receive/{SIGNAL_PHONE_NUMBER}"
 
         while True:
             try:
-                logger.info(f"Attempting to connect to WebSocket: {websocket_url}")
+                client_logger.info(f"Attempting to connect to WebSocket: {websocket_url}")
                 async with websockets.connect(websocket_url, ping_interval=30, ping_timeout=30) as websocket:
-                    logger.info("WebSocket connection established.")
+                    client_logger.info("WebSocket connection established.")
                     await process_signal_message(websocket, tools, tool_name_to_session)
-                logger.info("WebSocket connection closed. Will attempt to reconnect...")
+                client_logger.info("WebSocket connection closed. Will attempt to reconnect...")
             except Exception as e:
-                logger.error(f"An unexpected error occurred in the main connection loop: {e}")
+                client_logger.error(f"An unexpected error occurred in the main connection loop: {e}")
                 traceback.print_exc()
                 await asyncio.sleep(5)
 
@@ -158,6 +161,6 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("\nInterrupted by user. Exiting.")
+        client_logger.info("\nInterrupted by user. Exiting.")
     finally:
-        logger.info("\nCleanup complete.")
+        client_logger.info("\nCleanup complete.")

@@ -7,13 +7,24 @@ from pathlib import Path
 import history
 from build_in_tools import BUILT_IN_TOOLS, get_settings, run_build_in_tools
 from litellm import AuthenticationError, completion
-from mcp import ClientSession, StdioServerParameters
+from mcp import ClientSession, StdioServerParameters, types
 from mcp.client.stdio import stdio_client
 
 logger = logging.getLogger("signal_mcp_client")
 
 
-async def start_servers(exit_stack: AsyncExitStack):
+async def debug_log_handler(params: types.LoggingMessageNotificationParams, server_logger: logging.Logger):
+    if params.level == "debug":
+        server_logger.debug(params.data)
+    elif params.level in ["info", "notice"]:
+        server_logger.info(params.data)
+    elif params.level in ["warning", "alert"]:
+        server_logger.warning(params.data)
+    elif params.level in ["error", "critical", "emergency"]:
+        server_logger.error(params.data)
+
+
+async def start_servers(exit_stack: AsyncExitStack, handler: logging.Handler, server_log_level_int: int):
     """Connects to MCP servers defined in the config using a provided AsyncExitStack."""
 
     config_path = Path(__file__).parent.parent / "config.json"
@@ -38,7 +49,11 @@ async def start_servers(exit_stack: AsyncExitStack):
             stdio_transport = await exit_stack.enter_async_context(stdio_client(server_params))
             stdio, write = stdio_transport
 
-            session = ClientSession(stdio, write)
+            server_logger = logging.getLogger(server_name)
+            server_logger.setLevel(server_log_level_int)
+            server_logger.addHandler(handler)
+            
+            session = ClientSession(stdio, write, logging_callback=lambda params: debug_log_handler(params, server_logger))
             await exit_stack.enter_async_context(session)
 
             await session.initialize()
