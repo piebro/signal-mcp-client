@@ -141,12 +141,14 @@ async def process_conversation_turn(session_id, tools, tool_name_to_session, use
         error_message = (
             f"AuthenticationError: Please check your API key for the model: {settings['model_name']}, error: {e}"
         )
+        history.add_assistant_message(session_id, error_message)
         yield {"text": error_message}
         logger.error(error_message)
         return
     except Exception as e:
         error_message = f"ERROR during LLM API call: {e}"
         yield {"text": error_message}
+        history.add_assistant_message(session_id, error_message)
         logger.error(error_message)
         return
 

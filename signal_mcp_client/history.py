@@ -10,6 +10,8 @@ def get_history(session_id, limit):
         return []
     message_files = sorted(messages_dir.glob("*.json"))
     messages = [json.load(open(file_path)) for file_path in message_files[-limit:]]
+    if messages[0]["role"] == "tool":
+        messages = messages[1:]
     return messages
 
 
