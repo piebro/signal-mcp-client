@@ -49,24 +49,23 @@ def send_message(recipient, content):
     client_logger.info(f"Successfully sent text message to {recipient}")
 
 
-def send_attachment(session_id, recipient, content, filenames):
+def send_attachment(session_id, recipient, content, file_paths):
     url = f"{HTTP_BASE_URL}/v2/send"
     payload = {"number": SIGNAL_PHONE_NUMBER, "recipients": [recipient], "message": content}
     payload["base64_attachments"] = []
-    for filename in filenames:
-        suffix = filename.split(".")[-1]
+    for file_path in file_paths:
+        suffix = file_path.split(".")[-1]
         if suffix == "jpg" or suffix == "jpeg" or suffix == "png":
             content_type = f"image/{suffix}"
         else:
-            raise ValueError(f"Unsupported file type: {filename}")
-        file_path = Path(__file__).parent.parent / "sessions" / session_id / "images" / filename
+            raise ValueError(f"Unsupported file type: {file_path}")
         with open(file_path, "rb") as f:
             base64_data = base64.b64encode(f.read()).decode("utf-8")
-        payload["base64_attachments"].append(f"data:{content_type};filename={filename};base64,{base64_data}")
+        payload["base64_attachments"].append(f"data:{content_type};filename={Path(file_path).name};base64,{base64_data}")
 
     response = requests.post(url, json=payload, timeout=30)
     response.raise_for_status()
-    client_logger.info(f"Successfully sent message and attachments {filenames} to {recipient}")
+    client_logger.info(f"Successfully sent message and attachments {file_paths} to {recipient}")
 
 
 def save_image_attachment(session_id, attachment_id):
@@ -191,10 +190,11 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
         async for response in mcp_client.process_conversation_turn(
             session_id, tools, tool_name_to_session, user_message
         ):
-            if "images" in response:
+            if "image_file_paths" in response:
                 if "text" not in response:
                     response["text"] = ""
-                await asyncio.to_thread(send_attachment, session_id, session_id, response["text"], response["images"])
+                client_logger.info(f"Sending attachment: {len(response['image_file_paths'])} images")
+                await asyncio.to_thread(send_attachment, session_id, session_id, response["text"], response["image_file_paths"])
             elif "text" in response:
                 await asyncio.to_thread(send_message, session_id, response["text"])
 

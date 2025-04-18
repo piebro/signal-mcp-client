@@ -64,7 +64,7 @@ def add_assistant_message(session_id, content, tool_calls=None):
     add_message(session_id, message)
 
 
-def add_tool_response(session_id, tool_call_id, name, content):
+def add_tool_response(session_id, tool_call_id, name, tool_result_text):
     """Add a tool response message."""
-    message = {"role": "tool", "tool_call_id": tool_call_id, "name": name, "content": content}
+    message = {"role": "tool", "tool_call_id": tool_call_id, "name": name, "content": [{"type": "text", "text": tool_result_text}]}
     add_message(session_id, message)

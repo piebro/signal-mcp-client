@@ -91,7 +91,7 @@ async def execute_tool_call(session_id, tool_name_to_session, tool_name, tool_ar
 
     try:
         result = await session.call_tool(tool_name, tool_arguments)
-        return str(result)
+        return result.content[0].text
     except Exception as e:
         return f"Error executing tool '{tool_name}': {e}"
 
@@ -128,17 +128,22 @@ async def process_conversation_turn(session_id, tools, tool_name_to_session, use
                     tool_name = tool_call.function.name
                     tool_arguments = json.loads(tool_call.function.arguments)
 
-                    args_str = ", ".join([f"{k}={v!r}" for k, v in tool_arguments.items()])
-                    yield {"tool_use": f"{tool_name}({args_str})"}
-
-                    tool_result_content = await execute_tool_call(
+                    tool_result_text = await execute_tool_call(
                         session_id, tool_name_to_session, tool_name, tool_arguments
                     )
+
                     if tool_name == "reset_chat_history":
                         history.add_assistant_message(session_id, message.content, message.tool_calls)
+                    
+                    logger.info(f"tool_result_text: {tool_result_text}")
+                    
+                    if tool_result_text.startswith("SEND_IMAGE_PATH: "):
+                        history.add_tool_response(session_id, tool_id, tool_name, "successfully generated the image")
+                        yield {"image_file_paths": [tool_result_text.split("SEND_IMAGE_PATH: ")[1]]}
+                    else:
+                        history.add_tool_response(session_id, tool_id, tool_name, tool_result_text)
 
-                    history.add_tool_response(session_id, tool_id, tool_name, tool_result_content)
-                    yield {"tool_result": f"{tool_result_content}"}
+                    
     except AuthenticationError as e:
         error_message = (
             f"AuthenticationError: Please check your API key for the model: {settings['model_name']}, error: {e}"
