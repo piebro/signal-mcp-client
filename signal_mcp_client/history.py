@@ -1,6 +1,7 @@
 import json
 import os
 import time
+from datetime import datetime
 from pathlib import Path
 
 
@@ -34,7 +35,9 @@ def clear_history(session_id):
 def add_user_message(session_id, content, images_data_url=None):
     content_for_message = []
     if content:
-        content_for_message.append({"type": "text", "text": content})
+        now = datetime.now()
+        timestamp_str = now.strftime("[%Y.%m.%d %H:%M]")
+        content_for_message.append({"type": "text", "text": f"{timestamp_str} {content}"})
     if images_data_url:
         for image_data_url in images_data_url:
             content_for_message.append({"type": "image_url", "image_url": {"url": image_data_url}})
