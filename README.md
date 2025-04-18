@@ -12,11 +12,12 @@ I recommend to use an extra phone number for the bot, so you don't have to use y
     git clone https://github.com/piebro/signal-mcp-client.git
     cd signal-mcp-client
     ```
-2.  Save your Anthropic API key (if you don't have one, you can create one [here](https://console.anthropic.com/settings/keys)) and the bot's phone number in `.env`:
+2.  Save your [Anthropic API key](https://console.anthropic.com/settings/keys), the bot's phone number and optionally for voice messages your [FAL API key](https://fal.ai/dashboard/keys) in `.env`:
     ```bash
     cat << EOF > .env
     ANTHROPIC_API_KEY='your-key'
     SIGNAL_PHONE_NUMBER='+1234567890'
+    FAL_API_KEY='your-key'
     EOF
     ```
 3.  Rename `example.config.json` to `config.json`. You can add more MCP servers to it later.

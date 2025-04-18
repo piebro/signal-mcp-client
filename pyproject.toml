@@ -11,6 +11,7 @@ dependencies = [
     "requests",
     "litellm",
     "ruff",
+    "fal-client",
 ]
 authors = [
     {name = "Piet Brömmel", email = "piet.broemmel@gmail.com"}

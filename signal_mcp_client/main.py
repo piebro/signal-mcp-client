@@ -4,10 +4,12 @@ import json
 import logging
 import os
 import sys
+import tempfile
 import traceback
 from contextlib import AsyncExitStack
 from pathlib import Path
 
+import fal_client
 import mcp_client
 import requests
 import websockets
@@ -85,7 +87,7 @@ def save_image_attachment(session_id, attachment_id):
     return image_path.name
 
 
-def save_attachments(session_id, attachments):
+def save_image_attachments(session_id, attachments):
     image_filenames = []
     for attachment in attachments:
         content_type = attachment.get("contentType", "").lower()
@@ -97,42 +99,104 @@ def save_attachments(session_id, attachments):
     return image_filenames
 
 
+def transcribe_voice_message(attachments):
+    audio_data = None
+    for attachment in attachments:
+        content_type = attachment.get("contentType", "").lower()
+        attachment_id = attachment.get("id")
+        if content_type == "audio/aac" and attachment_id:
+            try:
+                client_logger.info(f"Fetching audio attachment ID: {attachment_id}")
+                url = f"{HTTP_BASE_URL}/v1/attachments/{attachment_id}"
+                response = requests.get(url, timeout=30)
+                response.raise_for_status()
+                audio_data = response.content
+                client_logger.info(
+                    f"Successfully fetched audio attachment ID: {attachment_id} ({len(audio_data)} bytes)"
+                )
+                # Process only the first audio file found
+                break
+            except Exception as e:
+                client_logger.error(f"Failed to fetch audio attachment {attachment_id}: {e}")
+                return False, None
+
+    if not audio_data:
+        return False, None
+
+    client_logger.info("Transcribing fetched audio data...")
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".aac") as temp_audio_file:
+            temp_audio_file.write(audio_data)
+            temp_audio_path = temp_audio_file.name
+        client_logger.info(f"Audio data saved to temporary file: {temp_audio_path}")
+
+        audio_url = fal_client.upload_file(temp_audio_path)
+        client_logger.info(f"Uploaded audio file, URL: {audio_url}")
+        os.remove(temp_audio_path)
+        client_logger.info(f"Temporary file deleted: {temp_audio_path}")
+
+        result = fal_client.subscribe(
+            "fal-ai/whisper",
+            arguments={
+                "audio_url": audio_url,
+                "task": "transcribe",
+            },
+        )
+        client_logger.info(result)
+
+        transcribed_text = result.get("text", "") if result else ""
+        client_logger.info(f"Transcription result: {transcribed_text}")
+        return True, transcribed_text
+    except Exception as e:
+        client_logger.error(f"Error during audio transcription: {e}")
+        traceback.print_exc()
+        if "temp_audio_path" in locals() and os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+            client_logger.info(f"Temporary file deleted after error: {temp_audio_path}")
+        return False, "[Error during transcription]"
+
+
 async def process_signal_message(websocket, tools, tool_name_to_session):
     client_logger.info("Waiting for Signal messages...")
-    # if a new message is received, before the previous one is processed, the message is added to the queue
     async for message in websocket:
         data = json.loads(message)
         envelope = data.get("envelope", {})
-        sender = envelope.get("source")
+        session_id = envelope.get("source")
         data_message = envelope.get("dataMessage", {})
         user_message = data_message.get("message", "")
         attachments = data_message.get("attachments", [])
 
-        if not user_message and len(attachments) == 0:
+        image_filenames = save_image_attachments(session_id, attachments)
+        success, transcribed_text = await asyncio.to_thread(transcribe_voice_message, attachments)
+        if success:
+            user_message = transcribed_text
+
+        if transcribed_text:
+            if user_message:
+                user_message = f"{user_message}\n{transcribed_text}"
+            else:
+                user_message = transcribed_text
+
+        if not user_message and len(image_filenames) == 0:
+            client_logger.info("No text message, transcription, or images to process. Skipping.")
             continue
-
-        session_id = sender
         client_logger.info(f"--- New message from {session_id} ---")
-
-        image_filenames = save_attachments(session_id, attachments)
 
         if len(image_filenames) > 0:
             img_filenames_str = ", ".join(image_filenames)
             user_message = f"[{img_filenames_str}]\n{user_message}"
-            await asyncio.to_thread(send_message, sender, img_filenames_str)
+            await asyncio.to_thread(send_message, session_id, f"Received images: {img_filenames_str}")
 
-        if user_message:
-            client_logger.info(f"Received (processed): {user_message}")
-
+        client_logger.info(f"Processing message for MCP: {user_message}")
         async for response in mcp_client.process_conversation_turn(
             session_id, tools, tool_name_to_session, user_message
         ):
             if "images" in response:
                 if "text" not in response:
                     response["text"] = ""
-                await asyncio.to_thread(send_attachment, session_id, sender, response["text"], response["images"])
+                await asyncio.to_thread(send_attachment, session_id, session_id, response["text"], response["images"])
             elif "text" in response:
-                await asyncio.to_thread(send_message, sender, response["text"])
+                await asyncio.to_thread(send_message, session_id, response["text"])
 
         client_logger.info(f"--- Finished processing for {session_id} ---")
 

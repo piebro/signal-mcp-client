@@ -52,8 +52,10 @@ async def start_servers(exit_stack: AsyncExitStack, handler: logging.Handler, se
             server_logger = logging.getLogger(server_name)
             server_logger.setLevel(server_log_level_int)
             server_logger.addHandler(handler)
-            
-            session = ClientSession(stdio, write, logging_callback=lambda params: debug_log_handler(params, server_logger))
+
+            session = ClientSession(
+                stdio, write, logging_callback=lambda params: debug_log_handler(params, server_logger)
+            )
             await exit_stack.enter_async_context(session)
 
             await session.initialize()
