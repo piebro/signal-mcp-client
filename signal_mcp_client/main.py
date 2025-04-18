@@ -83,19 +83,19 @@ def save_image_attachment(session_id, attachment_id):
     with open(image_path, "wb") as f:
         f.write(attachment_data)
     client_logger.info(f"Successfully fetched and saved attachment ID: {attachment_id} to {image_path}")
-    return image_path.name
+    return image_path
 
 
 def save_image_attachments(session_id, attachments):
-    image_filenames = []
+    image_file_paths = []
     for attachment in attachments:
         content_type = attachment.get("contentType", "").lower()
         attachment_id = attachment.get("id")
         if content_type.startswith("image/") and attachment_id:
-            image_filenames.append(save_image_attachment(session_id, attachment_id))
+            image_file_paths.append(save_image_attachment(session_id, attachment_id))
         else:
             client_logger.info("Ignoring attachments other then images")
-    return image_filenames
+    return image_file_paths
 
 
 def transcribe_voice_message(attachments):
@@ -165,7 +165,7 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
         user_message = data_message.get("message", "")
         attachments = data_message.get("attachments", [])
 
-        image_filenames = save_image_attachments(session_id, attachments)
+        image_file_paths = save_image_attachments(session_id, attachments)
         success, transcribed_text = await asyncio.to_thread(transcribe_voice_message, attachments)
         if success:
             user_message = transcribed_text
@@ -176,15 +176,15 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
             else:
                 user_message = transcribed_text
 
-        if not user_message and len(image_filenames) == 0:
+        if not user_message and len(image_file_paths) == 0:
             client_logger.info("No text message, transcription, or images to process. Skipping.")
             continue
         client_logger.info(f"--- New message from {session_id} ---")
 
-        if len(image_filenames) > 0:
-            img_filenames_str = ", ".join(image_filenames)
-            user_message = f"[{img_filenames_str}]\n{user_message}"
-            await asyncio.to_thread(send_message, session_id, f"Received images: {img_filenames_str}")
+        if len(image_file_paths) > 0:
+            img_file_paths_str = ", ".join(str(image_file_path) for image_file_path in image_file_paths)
+            user_message = f"[{img_file_paths_str}]\n{user_message}"
+            await asyncio.to_thread(send_message, session_id, f"Received images: {img_file_paths_str}")
 
         client_logger.info(f"Processing message for MCP: {user_message}")
         async for response in mcp_client.process_conversation_turn(

@@ -138,8 +138,9 @@ async def process_conversation_turn(session_id, tools, tool_name_to_session, use
                     logger.info(f"tool_result_text: {tool_result_text}")
                     
                     if tool_result_text.startswith("SEND_IMAGE_PATH: "):
-                        history.add_tool_response(session_id, tool_id, tool_name, "successfully generated the image")
-                        yield {"image_file_paths": [tool_result_text.split("SEND_IMAGE_PATH: ")[1]]}
+                        image_path = tool_result_text.split("SEND_IMAGE_PATH: ")[1]
+                        history.add_tool_response(session_id, tool_id, tool_name, f"The image was successfully generated and saved at: {image_path}")
+                        yield {"image_file_paths": [image_path]}
                     else:
                         history.add_tool_response(session_id, tool_id, tool_name, tool_result_text)
 
