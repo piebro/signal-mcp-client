@@ -12,7 +12,7 @@ I recommend to use an extra phone number for the bot, so you don't have to use y
     git clone https://github.com/piebro/signal-mcp-client.git
     cd signal-mcp-client
     ```
-2.  Save your Anthropic API key (or use another LLM provider) and the bot's phone number in `.env`:
+2.  Save your Anthropic API key (if you don't have one, you can create one [here](https://console.anthropic.com/settings/keys)) and the bot's phone number in `.env`:
     ```bash
     cat << EOF > .env
     ANTHROPIC_API_KEY='your-key'
@@ -54,20 +54,6 @@ Add the MCP server in the `config.json` file.
 
 Here are some example servers I use:
 - [vlc-mcp-server](https://github.com/piebro/vlc-mcp-server): An MCP Server to play and control local movies using VLC.
-
-## Using different LLM models
-
-You can change the default LLM in `settings.py` and add more available models.
-For each model provider you want to use, you will need to set the corresponding API key in your `.env` file.
-
-Have a look at [LiteLLM Providers](https://docs.litellm.ai/docs/providers) for a list of supported models.
-
-Common environment variables for API keys in `.env`:
-- Anthropic models: `ANTHROPIC_API_KEY`
-- Mistral models: `MISTRAL_API_KEY`
-- OpenAI models: `OPENAI_API_KEY`
-- Gemini models: `GEMINI_API_KEY`
-- Groq models: `GROQ_API_KEY`
 
 ## Contributing
 
