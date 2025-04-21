@@ -168,17 +168,23 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
         data_message = envelope.get("dataMessage", {})
         user_message = data_message.get("message", "")
         attachments = data_message.get("attachments", [])
+        quote = data_message.get("quote")
 
         image_file_paths = save_image_attachments(session_id, attachments)
         success, transcribed_text = await asyncio.to_thread(transcribe_voice_message, attachments)
         if success:
             user_message = transcribed_text
-
-        if transcribed_text:
-            if user_message:
-                user_message = f"{user_message}\n{transcribed_text}"
-            else:
-                user_message = transcribed_text
+        
+        if quote and quote.get("text"):
+            quoted_text = quote.get("text")
+            for attachment in quote.get("attachments", []):
+                # Image uploaded by the user don't usually have a filename,
+                # so it's not clear if the image can be quoted
+                filename = attachment.get("filename")
+                if filename:
+                    quoted_text += f" [{filename}]"
+                
+            user_message = f'{user_message}\n<quote>{quoted_text}</quote>'    
 
         if not user_message and len(image_file_paths) == 0:
             client_logger.info("No text message, transcription, or images to process. Skipping.")
