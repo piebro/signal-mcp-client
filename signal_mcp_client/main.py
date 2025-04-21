@@ -61,7 +61,9 @@ def send_attachment(session_id, recipient, content, file_paths):
             raise ValueError(f"Unsupported file type: {file_path}")
         with open(file_path, "rb") as f:
             base64_data = base64.b64encode(f.read()).decode("utf-8")
-        payload["base64_attachments"].append(f"data:{content_type};filename={Path(file_path).name};base64,{base64_data}")
+        payload["base64_attachments"].append(
+            f"data:{content_type};filename={Path(file_path).name};base64,{base64_data}"
+        )
 
     response = requests.post(url, json=payload, timeout=30)
     response.raise_for_status()
@@ -194,7 +196,9 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
                 if "text" not in response:
                     response["text"] = ""
                 client_logger.info(f"Sending attachment: {len(response['image_file_paths'])} images")
-                await asyncio.to_thread(send_attachment, session_id, session_id, response["text"], response["image_file_paths"])
+                await asyncio.to_thread(
+                    send_attachment, session_id, session_id, response["text"], response["image_file_paths"]
+                )
             elif "text" in response:
                 await asyncio.to_thread(send_message, session_id, response["text"])
 
