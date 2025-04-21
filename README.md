@@ -55,6 +55,7 @@ Add the MCP server in the `config.json` file.
 
 Here are some example servers I use:
 - [vlc-mcp-server](https://github.com/piebro/vlc-mcp-server): An MCP Server to play and control local movies using VLC.
+- [fal-ai-mcp-server](https://github.com/piebro/fal-ai-mcp-server): An MCP Server to use the fal.ai APIs to generate images and videos. 
 
 ## Contributing
 
