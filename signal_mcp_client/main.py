@@ -57,6 +57,8 @@ def send_attachment(session_id, recipient, content, file_paths):
         suffix = file_path.split(".")[-1]
         if suffix == "jpg" or suffix == "jpeg" or suffix == "png":
             content_type = f"image/{suffix}"
+        elif suffix == "mp4":
+            content_type = "video/mp4"
         else:
             raise ValueError(f"Unsupported file type: {file_path}")
         with open(file_path, "rb") as f:
@@ -192,12 +194,12 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
         async for response in mcp_client.process_conversation_turn(
             session_id, tools, tool_name_to_session, user_message
         ):
-            if "image_file_paths" in response:
+            if "media_file_paths" in response:
                 if "text" not in response:
                     response["text"] = ""
-                client_logger.info(f"Sending attachment: {len(response['image_file_paths'])} images")
+                client_logger.info(f"Sending attachment: {len(response['media_file_paths'])} images")
                 await asyncio.to_thread(
-                    send_attachment, session_id, session_id, response["text"], response["image_file_paths"]
+                    send_attachment, session_id, session_id, response["text"], response["media_file_paths"]
                 )
             elif "text" in response:
                 await asyncio.to_thread(send_message, session_id, response["text"])

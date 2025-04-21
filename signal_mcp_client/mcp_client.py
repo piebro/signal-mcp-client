@@ -134,17 +134,21 @@ async def process_conversation_turn(session_id, tools, tool_name_to_session, use
 
                     if tool_name == "reset_chat_history":
                         history.add_assistant_message(session_id, message.content, message.tool_calls)
-                    
+
                     logger.info(f"tool_result_text: {tool_result_text}")
-                    
-                    if tool_result_text.startswith("SEND_IMAGE_PATH: "):
-                        image_path = tool_result_text.split("SEND_IMAGE_PATH: ")[1]
-                        history.add_tool_response(session_id, tool_id, tool_name, f"The image was successfully generated and saved at: {image_path}")
-                        yield {"image_file_paths": [image_path]}
+
+                    if tool_result_text.startswith("SEND_MEDIA_PATH: "):
+                        media_path = tool_result_text.split("SEND_MEDIA_PATH: ")[1]
+                        history.add_tool_response(
+                            session_id,
+                            tool_id,
+                            tool_name,
+                            f"The image or video was successfully generated and saved at: {media_path}",
+                        )
+                        yield {"media_file_paths": [media_path]}
                     else:
                         history.add_tool_response(session_id, tool_id, tool_name, tool_result_text)
 
-                    
     except AuthenticationError as e:
         error_message = (
             f"AuthenticationError: Please check your API key for the model: {settings['model_name']}, error: {e}"
