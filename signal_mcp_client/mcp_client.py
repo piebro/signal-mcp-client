@@ -115,39 +115,38 @@ async def process_conversation_turn(session_id, tools, tool_name_to_session, use
             max_tokens=2000,
         )
 
-        for choice in response.choices:
-            message = choice.message
-            history.add_assistant_message(session_id, message.content, message.tool_calls)
-            if message.content:
-                yield {"text": message.content}
-            if message.tool_calls:
-                for tool_call in message.tool_calls:
-                    tool_used = True
+        message = response.choices[0].message
+        history.add_assistant_message(session_id, message.content, message.tool_calls)
+        if message.tool_calls:
+            tool_used = True
 
-                    tool_id = tool_call.id
-                    tool_name = tool_call.function.name
-                    tool_arguments = json.loads(tool_call.function.arguments)
+        if message.content:
+            yield {"text": message.content, "is_last_message": (not tool_used)}
 
-                    tool_result_text = await execute_tool_call(
-                        session_id, tool_name_to_session, tool_name, tool_arguments
+        if message.tool_calls:
+            for tool_call in message.tool_calls:
+                tool_id = tool_call.id
+                tool_name = tool_call.function.name
+                tool_arguments = json.loads(tool_call.function.arguments)
+
+                tool_result_text = await execute_tool_call(session_id, tool_name_to_session, tool_name, tool_arguments)
+
+                if tool_name == "reset_chat_history":
+                    history.add_assistant_message(session_id, message.content, message.tool_calls)
+
+                logger.info(f"tool_result_text: {tool_result_text}")
+
+                if tool_result_text.startswith("SEND_MEDIA_PATH: "):
+                    media_path = tool_result_text.split("SEND_MEDIA_PATH: ")[1]
+                    history.add_tool_response(
+                        session_id,
+                        tool_id,
+                        tool_name,
+                        f"The image or video was successfully generated and saved at: {media_path}",
                     )
-
-                    if tool_name == "reset_chat_history":
-                        history.add_assistant_message(session_id, message.content, message.tool_calls)
-
-                    logger.info(f"tool_result_text: {tool_result_text}")
-
-                    if tool_result_text.startswith("SEND_MEDIA_PATH: "):
-                        media_path = tool_result_text.split("SEND_MEDIA_PATH: ")[1]
-                        history.add_tool_response(
-                            session_id,
-                            tool_id,
-                            tool_name,
-                            f"The image or video was successfully generated and saved at: {media_path}",
-                        )
-                        yield {"media_file_paths": [media_path]}
-                    else:
-                        history.add_tool_response(session_id, tool_id, tool_name, tool_result_text)
+                    yield {"media_file_paths": [media_path]}
+                else:
+                    history.add_tool_response(session_id, tool_id, tool_name, tool_result_text)
 
     except AuthenticationError as e:
         error_message = (

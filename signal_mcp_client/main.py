@@ -72,6 +72,30 @@ def send_attachment(session_id, recipient, content, file_paths):
     client_logger.info(f"Successfully sent message and attachments {file_paths} to {recipient}")
 
 
+def send_typing_indicator(recipient):
+    """Sends the typing indicator to the recipient."""
+    url = f"{HTTP_BASE_URL}/v1/typing-indicator/{SIGNAL_PHONE_NUMBER}"
+    payload = {"recipient": recipient}
+    try:
+        response = requests.put(url, json=payload, timeout=5)
+        response.raise_for_status()
+        client_logger.debug(f"Sent typing indicator to {recipient}")
+    except requests.exceptions.RequestException as e:
+        client_logger.warning(f"Failed to send typing indicator to {recipient}: {e}")
+
+
+def clear_typing_indicator(recipient):
+    """Clears the typing indicator for the recipient."""
+    url = f"{HTTP_BASE_URL}/v1/typing-indicator/{SIGNAL_PHONE_NUMBER}"
+    payload = {"recipient": recipient}
+    try:
+        response = requests.delete(url, json=payload, timeout=5)
+        response.raise_for_status()
+        client_logger.debug(f"Cleared typing indicator for {recipient}")
+    except requests.exceptions.RequestException as e:
+        client_logger.warning(f"Failed to clear typing indicator for {recipient}: {e}")
+
+
 def save_image_attachment(session_id, attachment_id):
     url = f"{HTTP_BASE_URL}/v1/attachments/{attachment_id}"
     response = requests.get(url, timeout=30)
@@ -174,7 +198,7 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
         success, transcribed_text = await asyncio.to_thread(transcribe_voice_message, attachments)
         if success:
             user_message = transcribed_text
-        
+
         if quote and quote.get("text"):
             quoted_text = quote.get("text")
             for attachment in quote.get("attachments", []):
@@ -183,34 +207,53 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
                 filename = attachment.get("filename")
                 if filename:
                     quoted_text += f" [{filename}]"
-                
-            user_message = f'{user_message}\n<quote>{quoted_text}</quote>'    
+
+            user_message = f"{user_message}\n<quote>{quoted_text}</quote>"
 
         if not user_message and len(image_file_paths) == 0:
-            client_logger.info("No text message, transcription, or images to process. Skipping.")
+            client_logger.info(f"[{session_id}] No text message, transcription, or images to process. Skipping.")
             continue
-        client_logger.info(f"--- New message from {session_id} ---")
+        client_logger.info(f"--- [{session_id}] New message received ---")
 
         if len(image_file_paths) > 0:
             img_file_paths_str = ", ".join(str(image_file_path) for image_file_path in image_file_paths)
             user_message = f"[{img_file_paths_str}]\n{user_message}"
             await asyncio.to_thread(send_message, session_id, f"Received images: {img_file_paths_str}")
 
-        client_logger.info(f"Processing message for MCP: {user_message}")
-        async for response in mcp_client.process_conversation_turn(
-            session_id, tools, tool_name_to_session, user_message
-        ):
-            if "media_file_paths" in response:
-                if "text" not in response:
-                    response["text"] = ""
-                client_logger.info(f"Sending attachment: {len(response['media_file_paths'])} images")
-                await asyncio.to_thread(
-                    send_attachment, session_id, session_id, response["text"], response["media_file_paths"]
-                )
-            elif "text" in response:
-                await asyncio.to_thread(send_message, session_id, response["text"])
+        client_logger.info(
+            f"[{session_id}] Processing message for MCP: {user_message[:100]}{'...' if len(user_message) > 100 else ''}"
+        )
 
-        client_logger.info(f"--- Finished processing for {session_id} ---")
+        await asyncio.to_thread(send_typing_indicator, session_id)
+        try:
+            async for response in mcp_client.process_conversation_turn(
+                session_id, tools, tool_name_to_session, user_message
+            ):
+                if "media_file_paths" in response:
+                    if "text" not in response:
+                        response["text"] = ""
+                    client_logger.info(
+                        f"[{session_id}] Sending attachment: {len(response['media_file_paths'])} media files"
+                    )
+                    await asyncio.to_thread(
+                        send_attachment, session_id, session_id, response["text"], response["media_file_paths"]
+                    )
+                elif "text" in response:
+                    client_logger.info(
+                        f"[{session_id}] Sending text response: {response['text'][:100]}{'...' if len(response['text']) > 100 else ''}"
+                    )
+                    await asyncio.to_thread(send_message, session_id, response["text"])
+
+                client_logger.info(f"[{session_id}] Is last message: {response.get('is_last_message', False)}")
+                if not response.get("is_last_message", False):
+                    await asyncio.to_thread(send_typing_indicator, session_id)
+
+        except Exception as e:
+            await asyncio.to_thread(clear_typing_indicator, session_id)
+            client_logger.error(f"[{session_id}] Error during MCP processing: {e}")
+            traceback.print_exc()
+
+        client_logger.info(f"--- [{session_id}] Finished processing ---")
 
 
 async def main():
