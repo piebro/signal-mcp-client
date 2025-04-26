@@ -4,11 +4,12 @@ import os
 from contextlib import AsyncExitStack
 from pathlib import Path
 
-import history
-from build_in_tools import BUILT_IN_TOOLS, get_settings, run_build_in_tools
 from litellm import AuthenticationError, completion
 from mcp import ClientSession, StdioServerParameters, types
 from mcp.client.stdio import stdio_client
+
+from signal_mcp_client import history
+from signal_mcp_client.build_in_tools import BUILT_IN_TOOLS, get_settings, run_build_in_tools
 
 logger = logging.getLogger("signal_mcp_client")
 

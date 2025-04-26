@@ -10,10 +10,11 @@ from contextlib import AsyncExitStack
 from pathlib import Path
 
 import fal_client
-import mcp_client
 import requests
 import websockets
 from dotenv import load_dotenv
+
+from signal_mcp_client import mcp_client
 
 load_dotenv()
 

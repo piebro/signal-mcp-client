@@ -3,8 +3,9 @@ import json
 import logging
 from pathlib import Path
 
-import history
 from litellm import completion
+
+from signal_mcp_client import history
 
 logger = logging.getLogger("signal_mcp_client")
 
