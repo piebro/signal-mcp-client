@@ -51,6 +51,10 @@ ignore = [
 quote-style = "double"
 indent-style = "space"
 
+[build-system]
+requires = ["setuptools>=61.0", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
 [tool.setuptools.packages.find]
 include = ["signal_mcp_client"]
 
