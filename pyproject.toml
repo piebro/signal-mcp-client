@@ -26,7 +26,7 @@ classifiers = [
 ]
 
 [project.scripts]
-signal-mcp-client = "signal_mcp_client.main"
+signal-mcp-client = "signal_mcp_client.main:main"
 
 [project.urls]
 "Homepage" = "https://github.com/piebro/signal-mcp-client"

@@ -256,7 +256,7 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
         client_logger.info(f"--- [{session_id}] Finished processing ---")
 
 
-async def main():
+async def main_loop():
     async with AsyncExitStack() as exit_stack:
         client_logger.info("Starting MCP servers")
         tool_name_to_session, tools = await mcp_client.start_servers(exit_stack, handler, SERVER_LOG_LEVEL)
@@ -276,10 +276,14 @@ async def main():
                 await asyncio.sleep(5)
 
 
-if __name__ == "__main__":
+def main():
     try:
-        asyncio.run(main())
+        asyncio.run(main_loop())
     except KeyboardInterrupt:
         client_logger.info("\nInterrupted by user. Exiting.")
     finally:
         client_logger.info("\nCleanup complete.")
+
+
+if __name__ == "__main__":
+    main()
