@@ -2,3 +2,4 @@
 sessions/*
 __pycache__
 config.json
+signal_mcp_client.egg-info

@@ -63,6 +63,12 @@ Contributions to this project are welcome. Feel free to report bugs, suggest ide
 
 ## Development
 
+### Installation from source
+
+1. Clone the repo `git clone git@github.com:piebro/signal-mcp-client.git`.
+2. Go into the root dir `cd signal-mcp-client`.
+3. Install in development mode: `uv pip install -e .`
+
 ### Formatting and Linting
 
 The code is formatted and linted with ruff:
@@ -70,6 +76,23 @@ The code is formatted and linted with ruff:
 ```bash
 uv run ruff format
 uv run ruff check --fix
+```
+
+### Building with uv
+
+Build the package using uv:
+
+```bash
+uv build
+```
+
+### Releasing a New Version
+
+To release a new version of the package to PyPI, create and push a new Git tag:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 ## Running as a Systemd Service

@@ -25,6 +25,9 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
 ]
 
+[project.scripts]
+signal-mcp-client = "signal_mcp_client.main"
+
 [project.urls]
 "Homepage" = "https://github.com/piebro/signal-mcp-client"
 "Bug Tracker" = "https://github.com/piebro/signal-mcp-client/issues"
@@ -47,3 +50,12 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.setuptools.packages.find]
+include = ["signal_mcp_client"]
+
+[tool.setuptools_scm]
+# This will write the version to _version.py, used during packaging and at runtime
+write_to = "signal_mcp_client/_version.py"
+version_scheme = "post-release"
+local_scheme = "node-and-date"
