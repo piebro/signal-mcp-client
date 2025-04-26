@@ -1,6 +1,6 @@
 [project]
 name = "signal-mcp-client"
-version = "0.1.0"
+dynamic = ["version"]
 description = "An MCP client that uses signal for sending and receiving texts."
 readme = "README.md"
 requires-python = ">=3.10"
