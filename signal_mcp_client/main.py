@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import base64
 import json
@@ -18,10 +19,17 @@ from signal_mcp_client import mcp_client
 
 load_dotenv()
 
-WS_BASE_URL = "ws://localhost:8080"
-HTTP_BASE_URL = "http://localhost:8080"
-CLIENT_LOG_LEVEL = logging.DEBUG
-SERVER_LOG_LEVEL = logging.DEBUG
+SIGNAL_WS_BASE_URL = os.getenv("SIGNAL_WS_BASE_URL", "ws://localhost:8080")
+SIGNAL_HTTP_BASE_URL = os.getenv("SIGNAL_HTTP_BASE_URL", "http://localhost:8080")
+LOG_LEVEL_STR_TO_LEVEL = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
+CLIENT_LOG_LEVEL = LOG_LEVEL_STR_TO_LEVEL[os.getenv("CLIENT_LOG_LEVEL", "DEBUG")]
+SERVER_LOG_LEVEL = LOG_LEVEL_STR_TO_LEVEL[os.getenv("SERVER_LOG_LEVEL", "DEBUG")]
 
 log_format = "[%(levelname)s] [%(name)s] %(message)s"
 formatter = logging.Formatter(log_format)
@@ -43,7 +51,7 @@ def send_message(recipient, content):
     if not content or not content.strip():
         client_logger.info(f"Skipping empty text message send to {recipient}")
         return
-    url = f"{HTTP_BASE_URL}/v2/send"
+    url = f"{SIGNAL_HTTP_BASE_URL}/v2/send"
     payload = {"number": SIGNAL_PHONE_NUMBER, "recipients": [recipient], "message": content}
     response = requests.post(url, json=payload, timeout=20)
     response.raise_for_status()
@@ -51,7 +59,7 @@ def send_message(recipient, content):
 
 
 def send_attachment(session_id, recipient, content, file_paths):
-    url = f"{HTTP_BASE_URL}/v2/send"
+    url = f"{SIGNAL_HTTP_BASE_URL}/v2/send"
     payload = {"number": SIGNAL_PHONE_NUMBER, "recipients": [recipient], "message": content}
     payload["base64_attachments"] = []
     for file_path in file_paths:
@@ -75,7 +83,7 @@ def send_attachment(session_id, recipient, content, file_paths):
 
 def send_typing_indicator(recipient):
     """Sends the typing indicator to the recipient."""
-    url = f"{HTTP_BASE_URL}/v1/typing-indicator/{SIGNAL_PHONE_NUMBER}"
+    url = f"{SIGNAL_HTTP_BASE_URL}/v1/typing-indicator/{SIGNAL_PHONE_NUMBER}"
     payload = {"recipient": recipient}
     try:
         response = requests.put(url, json=payload, timeout=5)
@@ -87,7 +95,7 @@ def send_typing_indicator(recipient):
 
 def clear_typing_indicator(recipient):
     """Clears the typing indicator for the recipient."""
-    url = f"{HTTP_BASE_URL}/v1/typing-indicator/{SIGNAL_PHONE_NUMBER}"
+    url = f"{SIGNAL_HTTP_BASE_URL}/v1/typing-indicator/{SIGNAL_PHONE_NUMBER}"
     payload = {"recipient": recipient}
     try:
         response = requests.delete(url, json=payload, timeout=5)
@@ -97,13 +105,13 @@ def clear_typing_indicator(recipient):
         client_logger.warning(f"Failed to clear typing indicator for {recipient}: {e}")
 
 
-def save_image_attachment(session_id, attachment_id):
-    url = f"{HTTP_BASE_URL}/v1/attachments/{attachment_id}"
+def save_image_attachment(session_dir, session_id, attachment_id):
+    url = f"{SIGNAL_HTTP_BASE_URL}/v1/attachments/{attachment_id}"
     response = requests.get(url, timeout=30)
     response.raise_for_status()
     attachment_data = response.content
 
-    image_dir = Path(__file__).parent.parent / "sessions" / session_id / "images"
+    image_dir = session_dir / session_id / "images"
     image_dir.mkdir(parents=True, exist_ok=True)
     file_count = len(list(image_dir.glob("*")))
     _, ext = os.path.splitext(attachment_id)
@@ -115,13 +123,13 @@ def save_image_attachment(session_id, attachment_id):
     return image_path
 
 
-def save_image_attachments(session_id, attachments):
+def save_image_attachments(session_dir, session_id, attachments):
     image_file_paths = []
     for attachment in attachments:
         content_type = attachment.get("contentType", "").lower()
         attachment_id = attachment.get("id")
         if content_type.startswith("image/") and attachment_id:
-            image_file_paths.append(save_image_attachment(session_id, attachment_id))
+            image_file_paths.append(save_image_attachment(session_dir, session_id, attachment_id))
         else:
             client_logger.info("Ignoring attachments other then images")
     return image_file_paths
@@ -135,7 +143,7 @@ def transcribe_voice_message(attachments):
         if content_type == "audio/aac" and attachment_id:
             try:
                 client_logger.info(f"Fetching audio attachment ID: {attachment_id}")
-                url = f"{HTTP_BASE_URL}/v1/attachments/{attachment_id}"
+                url = f"{SIGNAL_HTTP_BASE_URL}/v1/attachments/{attachment_id}"
                 response = requests.get(url, timeout=30)
                 response.raise_for_status()
                 audio_data = response.content
@@ -184,7 +192,7 @@ def transcribe_voice_message(attachments):
         return False, "[Error during transcription]"
 
 
-async def process_signal_message(websocket, tools, tool_name_to_session):
+async def process_signal_message(websocket, args, tools, tool_name_to_session):
     client_logger.info("Waiting for Signal messages...")
     async for message in websocket:
         data = json.loads(message)
@@ -195,7 +203,7 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
         attachments = data_message.get("attachments", [])
         quote = data_message.get("quote")
 
-        image_file_paths = save_image_attachments(session_id, attachments)
+        image_file_paths = save_image_attachments(args.session_save_dir, session_id, attachments)
         success, transcribed_text = await asyncio.to_thread(transcribe_voice_message, attachments)
         if success:
             user_message = transcribed_text
@@ -228,7 +236,7 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
         await asyncio.to_thread(send_typing_indicator, session_id)
         try:
             async for response in mcp_client.process_conversation_turn(
-                session_id, tools, tool_name_to_session, user_message
+                session_id, args, tools, tool_name_to_session, user_message
             ):
                 if "media_file_paths" in response:
                     if "text" not in response:
@@ -257,19 +265,20 @@ async def process_signal_message(websocket, tools, tool_name_to_session):
         client_logger.info(f"--- [{session_id}] Finished processing ---")
 
 
-async def main_loop():
+async def main_loop(args):
     async with AsyncExitStack() as exit_stack:
         client_logger.info("Starting MCP servers")
-        tool_name_to_session, tools = await mcp_client.start_servers(exit_stack, handler, SERVER_LOG_LEVEL)
+        tool_name_to_session, tools = await mcp_client.start_servers(exit_stack, args, handler, SERVER_LOG_LEVEL)
 
-        websocket_url = f"{WS_BASE_URL}/v1/receive/{SIGNAL_PHONE_NUMBER}"
+        websocket_url = f"{SIGNAL_WS_BASE_URL}/v1/receive/{SIGNAL_PHONE_NUMBER}"
+        client_logger.info(f"WebSocket URL: {websocket_url}")
 
         while True:
             try:
                 client_logger.info(f"Attempting to connect to WebSocket: {websocket_url}")
                 async with websockets.connect(websocket_url, ping_interval=30, ping_timeout=30) as websocket:
                     client_logger.info("WebSocket connection established.")
-                    await process_signal_message(websocket, tools, tool_name_to_session)
+                    await process_signal_message(websocket, args, tools, tool_name_to_session)
                 client_logger.info("WebSocket connection closed. Will attempt to reconnect...")
             except Exception as e:
                 client_logger.error(f"An unexpected error occurred in the main connection loop: {e}")
@@ -278,8 +287,24 @@ async def main_loop():
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Signal MCP Client")
+    parser.add_argument("--config", type=str, help="Path to the config.json file.", required=True)
+    parser.add_argument(
+        "--available-models", nargs="+", type=str, help="Available LLM models for the MCP client.", required=True
+    )
+    parser.add_argument("--session-save-dir", type=Path, help="Path to the session save directory.", required=True)
+    parser.add_argument("--default-model-name", type=str, help="The default LLM model name to use.", required=True)
+    parser.add_argument("--default-system-prompt", type=str, help="The default system prompt to use.", required=True)
+    parser.add_argument(
+        "--default-llm-chat-message-context-limit",
+        type=int,
+        help="The default LLM chat message context limit to use.",
+        required=True,
+    )
+    args = parser.parse_args()
+
     try:
-        asyncio.run(main_loop())
+        asyncio.run(main_loop(args))
     except KeyboardInterrupt:
         client_logger.info("\nInterrupted by user. Exiting.")
     finally:

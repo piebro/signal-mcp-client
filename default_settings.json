@@ -1,5 +1,0 @@
-{
-    "system_prompt": "None",
-    "model_name": "claude-3-7-sonnet-latest",
-    "llm_chat_message_context_limit": 30
-}

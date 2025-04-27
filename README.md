@@ -7,29 +7,12 @@ An MCP (Model Context Protocol) client that uses Signal for sending and receivin
 These Instructions are for Linux. With some minor modification this should also work on a Mac or Windows.
 I recommend to use an extra phone number for the bot, so you don't have to use your own.
 
-1.  Clone the repository and navigate into the directory: 
-    ```bash
-    git clone https://github.com/piebro/signal-mcp-client.git
-    cd signal-mcp-client
-    ```
-2.  Save your [Anthropic API key](https://console.anthropic.com/settings/keys), the bot's phone number and optionally for voice messages your [FAL API key](https://fal.ai/dashboard/keys) in `.env`:
-    ```bash
-    cat << EOF > .env
-    ANTHROPIC_API_KEY='your-key'
-    SIGNAL_PHONE_NUMBER='+1234567890'
-    FAL_API_KEY='your-key'
-    EOF
-    ```
-3.  Rename `example.config.json` to `config.json`. You can add more MCP servers to it later.
-    ```bash
-    mv example.config.json config.json
-    ```
-4.  Install [uv](https://docs.astral.sh/uv/) and [podman](https://podman.io/):
+1. Install [uv](https://docs.astral.sh/uv/) and [podman](https://podman.io/):
     ```bash
     sudo apt install podman
     curl -LsSf https://astral.sh/uv/install.sh | sh
     ```
-5.  Start the [Signal CLI Rest Server](https://github.com/bbernhard/signal-cli-rest-api) container:
+2. Start the [Signal CLI Rest Server](https://github.com/bbernhard/signal-cli-rest-api) container:
     ```bash
     mkdir -p $HOME/.local/share/signal-api
     podman run \
@@ -38,15 +21,38 @@ I recommend to use an extra phone number for the bot, so you don't have to use y
         -p 8080:8080 \
         -v $HOME/.local/share/signal-api:/home/.local/share/signal-cli \
         -e 'MODE=json-rpc' \
-        docker.io/bbernhard/signal-cli-rest-api:latest-dev
+        docker.io/bbernhard/signal-cli-rest-api:0.184-dev
     ```
-6.  Connect the signal-cli-rest-api container to your signal account by opening this link and scanning the QR code: 
+3. Connect the signal-cli-rest-api container to your signal account by opening this link and scanning the QR code:
     ```
     http://localhost:8080/v1/qrcodelink?device_name=signal-api
     ```
-7.  Start the MCP client: 
+4. Create a config.json with your mcp servers. For example for testing you can use:
     ```bash
-    uv run signal_mcp_client/main.py
+    cat << EOF > config.json
+    {
+        "servers": [{
+            "name": "echo-mcp-server-for-testing",
+            "command": "uvx",
+            "args": ["echo-mcp-server-for-testing"],
+            "env": {"SECRET_KEY": "123456789"}
+        }]
+    }
+    EOF
+    ```
+5. Create a session directory for saving the message history, images, videos and settings for each user and start the MCP client:
+    ```bash
+    export ANTHROPIC_API_KEY='your-key'
+    export SIGNAL_PHONE_NUMBER='+1234567890'
+    export FAL_API_KEY='your-key' # optional for transcribing voice messages
+
+    uvx signal-mcp-client \
+        --config config.json \
+        --session-save-dir /absolute/path/to/session/dir \
+        --available-models claude-3-7-sonnet-latest claude-3-5-haiku-latest \
+        --default-model-name claude-3-7-sonnet-latest \
+        --default-system-prompt "" \
+        --default-llm-chat-message-context-limit 50
     ```
 
 ## Adding MCP Server
@@ -63,11 +69,30 @@ Contributions to this project are welcome. Feel free to report bugs, suggest ide
 
 ## Development
 
-### Installation from source
+### Running from source
 
 1. Clone the repo `git clone git@github.com:piebro/signal-mcp-client.git`.
 2. Go into the root dir `cd signal-mcp-client`.
-3. Install in development mode: `uv pip install -e .`
+3. Run the MCP client:
+    ```bash
+    export ANTHROPIC_API_KEY='your-key'
+    export SIGNAL_PHONE_NUMBER='+1234567890'
+    export FAL_API_KEY='your-key' # optional for transcribing voice messages
+    # additional optional environment variables:
+    export SIGNAL_WS_BASE_URL="ws://localhost:8080"
+    export SIGNAL_HTTP_BASE_URL="http://localhost:8080" 
+    export CLIENT_LOG_LEVEL="DEBUG"
+    export SERVER_LOG_LEVEL="DEBUG"
+    # you can also use a .env file in the root directory to set the environment variables
+
+    uv run signal_mcp_client/main.py \
+        --config config.json \
+        --session-save-dir absolute/path/to/session/dir \
+        --available-models claude-3-7-sonnet-latest claude-3-5-haiku-latest \
+        --default-model-name claude-3-7-sonnet-latest \
+        --default-system-prompt "" \
+        --default-llm-chat-message-context-limit 50
+    ```
 
 ### Formatting and Linting
 

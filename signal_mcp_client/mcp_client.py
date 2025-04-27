@@ -1,15 +1,15 @@
+import argparse
 import json
 import logging
 import os
 from contextlib import AsyncExitStack
-from pathlib import Path
 
 from litellm import AuthenticationError, completion
 from mcp import ClientSession, StdioServerParameters, types
 from mcp.client.stdio import stdio_client
 
 from signal_mcp_client import history
-from signal_mcp_client.build_in_tools import BUILT_IN_TOOLS, get_settings, run_build_in_tools
+from signal_mcp_client.build_in_tools import get_build_in_tools, get_settings, run_build_in_tools
 
 logger = logging.getLogger("signal_mcp_client")
 
@@ -25,17 +25,18 @@ async def debug_log_handler(params: types.LoggingMessageNotificationParams, serv
         server_logger.error(params.data)
 
 
-async def start_servers(exit_stack: AsyncExitStack, handler: logging.Handler, server_log_level_int: int):
+async def start_servers(
+    exit_stack: AsyncExitStack, args: argparse.Namespace, handler: logging.Handler, server_log_level_int: int
+):
     """Connects to MCP servers defined in the config using a provided AsyncExitStack."""
 
-    config_path = Path(__file__).parent.parent / "config.json"
-    if os.path.exists(config_path):
-        with open(config_path) as f:
+    if os.path.exists(args.config):
+        with open(args.config) as f:
             servers = json.load(f)["servers"]
     else:
-        raise Exception("Error: config.json not found.")
+        raise Exception(f"Error: config.json file {args.config} not found.")
 
-    tools = [*BUILT_IN_TOOLS]
+    tools = get_build_in_tools(args.available_models)
     tool_name_to_session = {}
 
     logger.info(f"Attempting to connect to {len(servers)} MCP server(s)...")
@@ -79,10 +80,10 @@ async def start_servers(exit_stack: AsyncExitStack, handler: logging.Handler, se
     return tool_name_to_session, tools
 
 
-async def execute_tool_call(session_id, tool_name_to_session, tool_name, tool_arguments):
+async def execute_tool_call(args, session_id, tool_name_to_session, tool_name, tool_arguments):
     """Executes a tool call using the appropriate MCP session."""
 
-    success, result = run_build_in_tools(session_id, tool_name, tool_arguments)
+    success, result = run_build_in_tools(args, session_id, tool_name, tool_arguments)
     if success:
         return result
 
@@ -97,13 +98,14 @@ async def execute_tool_call(session_id, tool_name_to_session, tool_name, tool_ar
         return f"Error executing tool '{tool_name}': {e}"
 
 
-async def process_conversation_turn(session_id, tools, tool_name_to_session, user_message=None):
-    settings = get_settings(session_id)
-    history.add_user_message(session_id, user_message)
+async def process_conversation_turn(session_id, args, tools, tool_name_to_session, user_message=None):
+    settings = get_settings(args, session_id)
+    session_dir = args.session_save_dir
+    history.add_user_message(session_dir, session_id, user_message)
 
     tool_used = False
     try:
-        messages = history.get_history(session_id, limit=settings["llm_chat_message_context_limit"])
+        messages = history.get_history(session_dir, session_id, limit=settings["llm_chat_message_context_limit"])
 
         system_prompt = settings["system_prompt"]
         if system_prompt and system_prompt.lower() != "none":
@@ -117,7 +119,8 @@ async def process_conversation_turn(session_id, tools, tool_name_to_session, use
         )
 
         message = response.choices[0].message
-        history.add_assistant_message(session_id, message.content, message.tool_calls)
+
+        history.add_assistant_message(session_dir, session_id, message.content, message.tool_calls)
         if message.tool_calls:
             tool_used = True
 
@@ -130,16 +133,16 @@ async def process_conversation_turn(session_id, tools, tool_name_to_session, use
                 tool_name = tool_call.function.name
                 tool_arguments = json.loads(tool_call.function.arguments)
 
-                tool_result_text = await execute_tool_call(session_id, tool_name_to_session, tool_name, tool_arguments)
-
-                if tool_name == "reset_chat_history":
-                    history.add_assistant_message(session_id, message.content, message.tool_calls)
+                tool_result_text = await execute_tool_call(
+                    args, session_id, tool_name_to_session, tool_name, tool_arguments
+                )
 
                 logger.info(f"tool_result_text: {tool_result_text}")
 
                 if tool_result_text.startswith("SEND_MEDIA_PATH: "):
                     media_path = tool_result_text.split("SEND_MEDIA_PATH: ")[1]
                     history.add_tool_response(
+                        session_dir,
                         session_id,
                         tool_id,
                         tool_name,
@@ -147,23 +150,23 @@ async def process_conversation_turn(session_id, tools, tool_name_to_session, use
                     )
                     yield {"media_file_paths": [media_path]}
                 else:
-                    history.add_tool_response(session_id, tool_id, tool_name, tool_result_text)
+                    history.add_tool_response(session_dir, session_id, tool_id, tool_name, tool_result_text)
 
     except AuthenticationError as e:
         error_message = (
             f"AuthenticationError: Please check your API key for the model: {settings['model_name']}, error: {e}"
         )
-        history.add_assistant_message(session_id, error_message)
-        yield {"text": error_message}
+        history.add_assistant_message(session_dir, session_id, error_message)
+        yield {"text": error_message, "is_last_message": True}
         logger.error(error_message)
         return
     except Exception as e:
         error_message = f"ERROR during LLM API call: {e}"
-        yield {"text": error_message}
-        history.add_assistant_message(session_id, error_message)
+        yield {"text": error_message, "is_last_message": True}
+        history.add_assistant_message(session_dir, session_id, error_message)
         logger.error(error_message)
         return
 
     if tool_used:
-        async for item in process_conversation_turn(session_id, tools, tool_name_to_session):
+        async for item in process_conversation_turn(session_id, args, tools, tool_name_to_session):
             yield item
