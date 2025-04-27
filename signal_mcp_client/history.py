@@ -2,6 +2,9 @@ import json
 import os
 import time
 from datetime import datetime
+import logging
+
+logger = logging.getLogger("signal_mcp_client")
 
 
 def get_history(session_dir, session_id, limit):
@@ -20,6 +23,10 @@ def add_message(session_dir, session_id, message):
     messages_dir.mkdir(parents=True, exist_ok=True)
 
     file_path = messages_dir / f"{int(time.time() * 1000)}.json"
+    if file_path.exists():
+        time.sleep(0.001)
+        file_path = messages_dir / f"{int(time.time() * 1000)}.json"
+
     with open(file_path, "w") as f:
         json.dump(message, f, indent=2)
 
@@ -32,23 +39,19 @@ def clear_history(session_dir, session_id):
             os.remove(file_path)
 
 
-def add_user_message(session_dir, session_id, content, images_data_url=None):
-    content_for_message = []
-    if content:
-        now = datetime.now()
-        timestamp_str = now.strftime("[%Y.%m.%d %H:%M]")
-        content_for_message.append({"type": "text", "text": f"{timestamp_str} {content}"})
-    if images_data_url:
-        for image_data_url in images_data_url:
-            content_for_message.append({"type": "image_url", "image_url": {"url": image_data_url}})
-
-    if len(content_for_message) > 0:
-        message = {"role": "user", "content": content_for_message}
-        add_message(session_dir, session_id, message)
+def add_user_message(session_dir, session_id, content):
+    timestamp_str = datetime.now().strftime("[%Y.%m.%d %H:%M]")
+    message = {"role": "user", "content": [{"type": "text", "text": f"{timestamp_str} {content}"}]}
+    add_message(session_dir, session_id, message)
+    logger.info(f"user_message: {message['content'][0]['text'][:60]}...")
 
 
 def add_assistant_message(session_dir, session_id, content, tool_calls=None):
     """Add a simple assistant text message."""
+    if content is None:
+        logger.info(f"assistant_message: None")
+    else:
+        logger.info(f"assistant_message: {content[:60]}...")
     message = {"role": "assistant", "content": content}
     if tool_calls:
         temp_tool_calls = []
@@ -60,9 +63,12 @@ def add_assistant_message(session_dir, session_id, content, tool_calls=None):
                     "function": {"name": tool_call.function.name, "arguments": tool_call.function.arguments},
                 }
             )
+        logger.info(f"tool_calls: {', '.join([f'{tool_call.function.name}({tool_call.function.arguments})' for tool_call in tool_calls])}")
         message["tool_calls"] = temp_tool_calls
-    add_message(session_dir, session_id, message)
-
+    
+    if content or tool_calls:
+        add_message(session_dir, session_id, message)
+    
 
 def add_tool_response(session_dir, session_id, tool_call_id, name, tool_result_text):
     """Add a tool response message."""
@@ -73,3 +79,4 @@ def add_tool_response(session_dir, session_id, tool_call_id, name, tool_result_t
         "content": [{"type": "text", "text": tool_result_text}],
     }
     add_message(session_dir, session_id, message)
+    logger.info(f"tool_response: {tool_result_text[:60]}...")

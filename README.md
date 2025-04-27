@@ -87,7 +87,7 @@ Contributions to this project are welcome. Feel free to report bugs, suggest ide
 
     uv run signal_mcp_client/main.py \
         --config config.json \
-        --session-save-dir absolute/path/to/session/dir \
+        --session-save-dir /absolute/path/to/session/dir \
         --available-models claude-3-7-sonnet-latest claude-3-5-haiku-latest \
         --default-model-name claude-3-7-sonnet-latest \
         --default-system-prompt "" \

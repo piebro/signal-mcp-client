@@ -41,7 +41,7 @@ def get_build_in_tools(available_models):
             "type": "function",
             "function": {
                 "name": "get_settings",
-                "description": "Get the settings of the user.",
+                "description": "Show the settings of the user to the LLM.",
                 "parameters": {
                     "type": "object",
                     "properties": {},
@@ -77,11 +77,11 @@ def get_build_in_tools(available_models):
             "type": "function",
             "function": {
                 "name": "describe_images",
-                "description": "Describe images and return a description of the images.",
+                "description": "Describe images and return a description of the images to the LLM.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "image_filenames": {
+                        "image_paths": {
                             "type": "array",
                             "items": {
                                 "type": "string",
@@ -89,7 +89,31 @@ def get_build_in_tools(available_models):
                             "description": "The filenames of the images to describe.",
                         },
                     },
-                    "required": ["image_filenames"],
+                    "required": ["image_paths"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "reply_to_user",
+                "description": "Reply to the message of the user. This tool should always be used to answer to the user, other the user won't see the answer. Always reply in the same language as the user.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "reply_message": {
+                            "type": "string",
+                            "description": "The message from the bot to the user.",
+                        },
+                        "media_file_paths": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                            },
+                            "description": "The paths of the images to send to the user.",
+                        },
+                    },
+                    "required": ["reply_message"],
                 },
             },
         },
@@ -114,7 +138,7 @@ def get_session_settings(session_dir, session_id):
 
 
 def update_settings(session_dir, session_id, **tool_arguments):
-    logger.info(f"update settings with: {tool_arguments}")
+    logger.debug(f"update settings with: {tool_arguments}")
     session_settings = get_session_settings(session_dir, session_id)
     session_settings.update(tool_arguments)
 
@@ -126,7 +150,7 @@ def update_settings(session_dir, session_id, **tool_arguments):
 
 
 def get_settings(args, session_id):
-    logger.info(f"get settings for session: {session_id}")
+    logger.debug(f"get settings for session: {session_id}")
     settings = get_default_settings(args)
     session_settings = get_session_settings(args.session_save_dir, session_id)
     settings.update(session_settings)
@@ -134,7 +158,7 @@ def get_settings(args, session_id):
 
 
 def reset_settings(session_dir, session_id):
-    logger.info(f"reset settings for session: {session_id}")
+    logger.debug(f"reset settings for session: {session_id}")
     session_settings_path = session_dir / session_id / "settings.json"
     if session_settings_path.exists():
         session_settings_path.unlink()
@@ -143,17 +167,16 @@ def reset_settings(session_dir, session_id):
 
 
 def reset_chat_history(session_dir, session_id):
-    logger.info(f"reset chat history for session: {session_id}")
+    logger.debug(f"reset chat history for session: {session_id}")
     history.clear_history(session_dir, session_id)
     return True, "chat history reset"
 
 
-def describe_images(args, session_id, image_filenames):
+def describe_images(args, session_id, image_paths):
     image_contents = []
-    for image_filename in image_filenames:
-        image_path = args.session_save_dir / session_id / "images" / image_filename
+    for image_path in image_paths:
         if not image_path.exists():
-            return True, f"Error: Image file '{image_filename}' not found."
+            return True, f"Error: Image file '{image_path}' not found."
 
         with open(image_path, "rb") as image_file:
             base64_image = base64.b64encode(image_file.read()).decode("utf-8")
@@ -176,6 +199,11 @@ def describe_images(args, session_id, image_filenames):
     )
     return True, response.choices[0].message.content
 
+def reply_to_user(args, session_id, reply_message, media_file_paths=None):
+    if media_file_paths is None:
+        media_file_paths = []
+    return True, json.dumps({"text": reply_message, "media_file_paths": media_file_paths})
+
 
 def run_build_in_tools(args, session_id, tool_name, tool_arguments):
     session_dir = args.session_save_dir
@@ -190,5 +218,7 @@ def run_build_in_tools(args, session_id, tool_name, tool_arguments):
         return reset_chat_history(session_dir, session_id)
     elif tool_name == "describe_images":
         return describe_images(args, session_id, tool_arguments.get("image_filenames"))
+    elif tool_name == "reply_to_user":
+        return reply_to_user(args, session_id, tool_arguments.get("reply_message"), tool_arguments.get("media_file_paths"))
     else:
         return False, None

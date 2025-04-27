@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import os
+import traceback
 from contextlib import AsyncExitStack
 
 from litellm import AuthenticationError, completion
@@ -101,7 +102,9 @@ async def execute_tool_call(args, session_id, tool_name_to_session, tool_name, t
 async def process_conversation_turn(session_id, args, tools, tool_name_to_session, user_message=None):
     settings = get_settings(args, session_id)
     session_dir = args.session_save_dir
-    history.add_user_message(session_dir, session_id, user_message)
+    
+    if user_message:
+        history.add_user_message(session_dir, session_id, user_message)
 
     tool_used = False
     try:
@@ -119,52 +122,48 @@ async def process_conversation_turn(session_id, args, tools, tool_name_to_sessio
         )
 
         message = response.choices[0].message
-
         history.add_assistant_message(session_dir, session_id, message.content, message.tool_calls)
+
         if message.tool_calls:
             tool_used = True
-
-        if message.content:
-            yield {"text": message.content, "is_last_message": (not tool_used)}
-
-        if message.tool_calls:
             for tool_call in message.tool_calls:
                 tool_id = tool_call.id
                 tool_name = tool_call.function.name
                 tool_arguments = json.loads(tool_call.function.arguments)
 
-                tool_result_text = await execute_tool_call(
+                tool_result = await execute_tool_call(
                     args, session_id, tool_name_to_session, tool_name, tool_arguments
                 )
 
-                logger.info(f"tool_result_text: {tool_result_text}")
+                history.add_tool_response(session_dir, session_id, tool_id, tool_name, tool_result)
+                
 
-                if tool_result_text.startswith("SEND_MEDIA_PATH: "):
-                    media_path = tool_result_text.split("SEND_MEDIA_PATH: ")[1]
-                    history.add_tool_response(
-                        session_dir,
-                        session_id,
-                        tool_id,
-                        tool_name,
-                        f"The image or video was successfully generated and saved at: {media_path}",
-                    )
-                    yield {"media_file_paths": [media_path]}
+                if tool_name == "reply_to_user":
+                    tool_result = json.loads(tool_result)
+                    yield {
+                        "text": tool_result["text"],
+                        "media_file_paths": tool_result["media_file_paths"],
+                    }
                 else:
-                    history.add_tool_response(session_dir, session_id, tool_id, tool_name, tool_result_text)
+                    yield {}  # send empty message to send typing indicator
 
     except AuthenticationError as e:
         error_message = (
             f"AuthenticationError: Please check your API key for the model: {settings['model_name']}, error: {e}"
         )
         history.add_assistant_message(session_dir, session_id, error_message)
-        yield {"text": error_message, "is_last_message": True}
+        yield {"text": error_message}
+        stack_trace = traceback.format_exc()
         logger.error(error_message)
+        logger.error(stack_trace)
         return
     except Exception as e:
         error_message = f"ERROR during LLM API call: {e}"
-        yield {"text": error_message, "is_last_message": True}
+        yield {"text": error_message}
         history.add_assistant_message(session_dir, session_id, error_message)
+        stack_trace = traceback.format_exc()
         logger.error(error_message)
+        logger.error(stack_trace)
         return
 
     if tool_used:

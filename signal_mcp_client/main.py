@@ -28,8 +28,8 @@ LOG_LEVEL_STR_TO_LEVEL = {
     "ERROR": logging.ERROR,
     "CRITICAL": logging.CRITICAL,
 }
-CLIENT_LOG_LEVEL = LOG_LEVEL_STR_TO_LEVEL[os.getenv("CLIENT_LOG_LEVEL", "DEBUG")]
-SERVER_LOG_LEVEL = LOG_LEVEL_STR_TO_LEVEL[os.getenv("SERVER_LOG_LEVEL", "DEBUG")]
+CLIENT_LOG_LEVEL = LOG_LEVEL_STR_TO_LEVEL[os.getenv("CLIENT_LOG_LEVEL", "INFO")]
+SERVER_LOG_LEVEL = LOG_LEVEL_STR_TO_LEVEL[os.getenv("SERVER_LOG_LEVEL", "INFO")]
 
 log_format = "[%(levelname)s] [%(name)s] %(message)s"
 formatter = logging.Formatter(log_format)
@@ -220,7 +220,7 @@ async def process_signal_message(websocket, args, tools, tool_name_to_session):
             user_message = f"{user_message}\n<quote>{quoted_text}</quote>"
 
         if not user_message and len(image_file_paths) == 0:
-            client_logger.info(f"[{session_id}] No text message, transcription, or images to process. Skipping.")
+            client_logger.debug(f"[{session_id}] No text message, transcription, or images to process. Skipping.")
             continue
         client_logger.info(f"--- [{session_id}] New message received ---")
 
@@ -238,7 +238,7 @@ async def process_signal_message(websocket, args, tools, tool_name_to_session):
             async for response in mcp_client.process_conversation_turn(
                 session_id, args, tools, tool_name_to_session, user_message
             ):
-                if "media_file_paths" in response:
+                if "media_file_paths" in response and len(response["media_file_paths"]) > 0:
                     if "text" not in response:
                         response["text"] = ""
                     client_logger.info(
@@ -252,11 +252,9 @@ async def process_signal_message(websocket, args, tools, tool_name_to_session):
                         f"[{session_id}] Sending text response: {response['text'][:100]}{'...' if len(response['text']) > 100 else ''}"
                     )
                     await asyncio.to_thread(send_message, session_id, response["text"])
-
-                client_logger.info(f"[{session_id}] Is last message: {response.get('is_last_message', False)}")
-                if not response.get("is_last_message", False):
+                else:
                     await asyncio.to_thread(send_typing_indicator, session_id)
-
+                    
         except Exception as e:
             await asyncio.to_thread(clear_typing_indicator, session_id)
             client_logger.error(f"[{session_id}] Error during MCP processing: {e}")
