@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) client that uses Signal for sending and receiving texts.
 
-## Setup The Signal Chat Bot
+## Setup and start the Signal Chat Bot
 
 These Instructions are for Linux. With some minor modification this should also work on a Mac or Windows.
 I recommend to use an extra phone number for the bot, so you don't have to use your own.
@@ -44,7 +44,7 @@ I recommend to use an extra phone number for the bot, so you don't have to use y
     ```bash
     export ANTHROPIC_API_KEY='your-key'
     export SIGNAL_PHONE_NUMBER='+1234567890'
-    export FAL_API_KEY='your-key' # optional for transcribing voice messages
+    export FAL_KEY='your-key' # optional for transcribing voice messages
 
     uvx signal-mcp-client \
         --config config.json \
@@ -178,15 +178,25 @@ This setup assumes that you have completed the setup steps and your project is l
     Wants=signal-cli-rest-api.service
 
     [Service]
-    WorkingDirectory=/home/$USER/signal-mcp-client
-    EnvironmentFile=/home/$USER/signal-mcp-client/.env
-    Environment="PATH=/usr/bin:/home/$USER/.local/bin:%{PATH}"
+    Environment="ANTHROPIC_API_KEY=your-key" 
+    Environment="SIGNAL_PHONE_NUMBER=+1234567890"
+    # Environment="FAL_KEY=your-key"
+    # Environment="SIGNAL_WS_BASE_URL=ws://127.0.0.1:8080"
+    # Environment="SIGNAL_HTTP_BASE_URL=http://127.0.0.1:8080" 
+    # Environment="CLIENT_LOG_LEVEL=INFO"
+    # Environment="SERVER_LOG_LEVEL=INFO"
     SyslogIdentifier=signal-mcp-client
 
     Restart=on-failure
     RestartSec=30
 
-    ExecStart=/home/$USER/.local/bin/uv run signal_mcp_client/main.py
+    ExecStart=/home/$USER/.local/bin/uvx signal-mcp-client \
+        --config config.json \
+        --session-save-dir /home/$USER/sessions \
+        --available-models claude-3-7-sonnet-latest claude-3-5-haiku-latest \
+        --default-model-name claude-3-7-sonnet-latest \
+        --default-system-prompt "" \
+        --default-llm-chat-message-context-limit 50
 
     [Install]
     WantedBy=default.target
