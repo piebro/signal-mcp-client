@@ -102,7 +102,7 @@ async def execute_tool_call(args, session_id, tool_name_to_session, tool_name, t
 async def process_conversation_turn(session_id, args, tools, tool_name_to_session, user_message=None):
     settings = get_settings(args, session_id)
     session_dir = args.session_save_dir
-    
+
     if user_message:
         history.add_user_message(session_dir, session_id, user_message)
 
@@ -131,12 +131,10 @@ async def process_conversation_turn(session_id, args, tools, tool_name_to_sessio
                 tool_name = tool_call.function.name
                 tool_arguments = json.loads(tool_call.function.arguments)
 
-                tool_result = await execute_tool_call(
-                    args, session_id, tool_name_to_session, tool_name, tool_arguments
-                )
+                tool_result = await execute_tool_call(args, session_id, tool_name_to_session, tool_name, tool_arguments)
 
                 history.add_tool_response(session_dir, session_id, tool_id, tool_name, tool_result)
-                
+
                 if tool_name == "reply_to_user":
                     yield {
                         "text": tool_arguments["reply_message"],

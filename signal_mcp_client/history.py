@@ -63,12 +63,14 @@ def add_assistant_message(session_dir, session_id, content, tool_calls=None):
                     "function": {"name": tool_call.function.name, "arguments": tool_call.function.arguments},
                 }
             )
-        logger.info(f"tool_calls: {', '.join([f'{tool_call.function.name}({tool_call.function.arguments})' for tool_call in tool_calls])}")
+        logger.info(
+            f"tool_calls: {', '.join([f'{tool_call.function.name}({tool_call.function.arguments})' for tool_call in tool_calls])}"
+        )
         message["tool_calls"] = temp_tool_calls
-    
+
     if content or tool_calls:
         add_message(session_dir, session_id, message)
-    
+
 
 def add_tool_response(session_dir, session_id, tool_call_id, name, tool_result_text):
     """Add a tool response message."""

@@ -237,7 +237,11 @@ async def process_signal_message(websocket, args, tools, tool_name_to_session):
             async for response in mcp_client.process_conversation_turn(
                 session_id, args, tools, tool_name_to_session, user_message
             ):
-                if "media_file_paths" in response and response["media_file_paths"] is not None and len(response["media_file_paths"]) > 0:
+                if (
+                    "media_file_paths" in response
+                    and response["media_file_paths"] is not None
+                    and len(response["media_file_paths"]) > 0
+                ):
                     if "text" not in response:
                         response["text"] = ""
                     client_logger.info(
@@ -253,7 +257,7 @@ async def process_signal_message(websocket, args, tools, tool_name_to_session):
                     await asyncio.to_thread(send_message, session_id, response["text"])
                 else:
                     await asyncio.to_thread(send_typing_indicator, session_id)
-                    
+
         except Exception as e:
             await asyncio.to_thread(clear_typing_indicator, session_id)
             client_logger.error(f"[{session_id}] Error during MCP processing: {e}")

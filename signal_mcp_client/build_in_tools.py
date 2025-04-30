@@ -201,6 +201,7 @@ def describe_images(args, session_id, image_paths):
     )
     return True, response.choices[0].message.content
 
+
 def reply_to_user(args, session_id, reply_message, media_file_paths=None):
     if media_file_paths is None:
         media_file_paths = []
@@ -221,6 +222,8 @@ def run_build_in_tools(args, session_id, tool_name, tool_arguments):
     elif tool_name == "describe_images":
         return describe_images(args, session_id, tool_arguments.get("image_paths"))
     elif tool_name == "reply_to_user":
-        return reply_to_user(args, session_id, tool_arguments.get("reply_message"), tool_arguments.get("media_file_paths"))
+        return reply_to_user(
+            args, session_id, tool_arguments.get("reply_message"), tool_arguments.get("media_file_paths")
+        )
     else:
         return False, None
