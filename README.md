@@ -6,7 +6,7 @@ An MCP (Model Context Protocol) client that uses Signal for sending and receivin
 <img src="https://raw.githubusercontent.com/piebro/signal-mcp-client/main/assets/settings_chat_screenshot.png" width="22%" style="padding: 1% 1% 1% 1%; vertical-align: middle;">
 <img src="https://raw.githubusercontent.com/piebro/signal-mcp-client/main/assets/edit_image_chat_screenshot.png" width="22%" style="padding: 1% 1% 1% 1%; vertical-align: middle;">
 <img src="https://raw.githubusercontent.com/piebro/signal-mcp-client/main/assets/generate_image_chat_screenshot.png" width="22%" style="padding: 1% 1% 1% 1%; vertical-align: middle;">
-<img src="https://raw.githubusercontent.com/piebro/signal-mcp-client/main/assets/vlc_chat_screenshot.png" width="22%" style="padding: 1% 1% 1% 1%; vertical-align: middle;">
+<!-- <img src="https://raw.githubusercontent.com/piebro/signal-mcp-client/main/assets/vlc_chat_screenshot.png" width="22%" style="padding: 1% 1% 1% 1%; vertical-align: middle;"> -->
 </p>
 
 ## Setup and start the Signal Chat Bot
