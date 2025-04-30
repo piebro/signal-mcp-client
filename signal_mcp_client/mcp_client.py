@@ -137,15 +137,13 @@ async def process_conversation_turn(session_id, args, tools, tool_name_to_sessio
 
                 history.add_tool_response(session_dir, session_id, tool_id, tool_name, tool_result)
                 
-
                 if tool_name == "reply_to_user":
-                    tool_result = json.loads(tool_result)
                     yield {
-                        "text": tool_result["text"],
-                        "media_file_paths": tool_result["media_file_paths"],
+                        "text": tool_arguments["reply_message"],
+                        "media_file_paths": tool_arguments.get("media_file_paths", []),
                     }
                 else:
-                    yield {}  # send empty message to send typing indicator
+                    yield {}  # send empty message to trigger typing indicator
 
     except AuthenticationError as e:
         error_message = (

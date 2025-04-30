@@ -21,7 +21,7 @@ I recommend to use an extra phone number for the bot, so you don't have to use y
         -p 8080:8080 \
         -v $HOME/.local/share/signal-api:/home/.local/share/signal-cli \
         -e 'MODE=json-rpc' \
-        docker.io/bbernhard/signal-cli-rest-api:0.184-dev
+        docker.io/bbernhard/signal-cli-rest-api:latest-dev
     ```
 3. Connect the signal-cli-rest-api container to your signal account by opening this link and scanning the QR code:
     ```

@@ -227,7 +227,6 @@ async def process_signal_message(websocket, args, tools, tool_name_to_session):
         if len(image_file_paths) > 0:
             img_file_paths_str = ", ".join(str(image_file_path) for image_file_path in image_file_paths)
             user_message = f"[{img_file_paths_str}]\n{user_message}"
-            await asyncio.to_thread(send_message, session_id, f"Received images: {img_file_paths_str}")
 
         client_logger.info(
             f"[{session_id}] Processing message for MCP: {user_message[:100]}{'...' if len(user_message) > 100 else ''}"
@@ -238,7 +237,7 @@ async def process_signal_message(websocket, args, tools, tool_name_to_session):
             async for response in mcp_client.process_conversation_turn(
                 session_id, args, tools, tool_name_to_session, user_message
             ):
-                if "media_file_paths" in response and len(response["media_file_paths"]) > 0:
+                if "media_file_paths" in response and response["media_file_paths"] is not None and len(response["media_file_paths"]) > 0:
                     if "text" not in response:
                         response["text"] = ""
                     client_logger.info(

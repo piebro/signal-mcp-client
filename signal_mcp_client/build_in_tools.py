@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+from pathlib import Path
 
 from litellm import completion
 
@@ -175,10 +176,11 @@ def reset_chat_history(session_dir, session_id):
 def describe_images(args, session_id, image_paths):
     image_contents = []
     for image_path in image_paths:
+        image_path = Path(image_path)
         if not image_path.exists():
             return True, f"Error: Image file '{image_path}' not found."
 
-        with open(image_path, "rb") as image_file:
+        with image_path.open("rb") as image_file:
             base64_image = base64.b64encode(image_file.read()).decode("utf-8")
             suffix = image_path.suffix.lstrip(".")
             if suffix == "jpg":
@@ -202,7 +204,7 @@ def describe_images(args, session_id, image_paths):
 def reply_to_user(args, session_id, reply_message, media_file_paths=None):
     if media_file_paths is None:
         media_file_paths = []
-    return True, json.dumps({"text": reply_message, "media_file_paths": media_file_paths})
+    return True, "success"
 
 
 def run_build_in_tools(args, session_id, tool_name, tool_arguments):
@@ -217,7 +219,7 @@ def run_build_in_tools(args, session_id, tool_name, tool_arguments):
     elif tool_name == "reset_chat_history":
         return reset_chat_history(session_dir, session_id)
     elif tool_name == "describe_images":
-        return describe_images(args, session_id, tool_arguments.get("image_filenames"))
+        return describe_images(args, session_id, tool_arguments.get("image_paths"))
     elif tool_name == "reply_to_user":
         return reply_to_user(args, session_id, tool_arguments.get("reply_message"), tool_arguments.get("media_file_paths"))
     else:

@@ -1,8 +1,8 @@
 import json
+import logging
 import os
 import time
 from datetime import datetime
-import logging
 
 logger = logging.getLogger("signal_mcp_client")
 
@@ -49,7 +49,7 @@ def add_user_message(session_dir, session_id, content):
 def add_assistant_message(session_dir, session_id, content, tool_calls=None):
     """Add a simple assistant text message."""
     if content is None:
-        logger.info(f"assistant_message: None")
+        logger.info("assistant_message: None")
     else:
         logger.info(f"assistant_message: {content[:60]}...")
     message = {"role": "assistant", "content": content}
