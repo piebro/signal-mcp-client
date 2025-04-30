@@ -1,10 +1,17 @@
 # Signal MCP Client
 
-An MCP (Model Context Protocol) client that uses Signal for sending and receiving texts.
+An MCP (Model Context Protocol) client that uses Signal for sending and receiving messages.
+
+<p align="center">
+<img src="https://raw.githubusercontent.com/piebro/signal-mcp-client/main/assets/settings_chat_screenshot.png" width="22%" style="padding: 1% 1% 1% 1%; vertical-align: middle;">
+<img src="https://raw.githubusercontent.com/piebro/signal-mcp-client/main/assets/edit_image_chat_screenshot.png" width="22%" style="padding: 1% 1% 1% 1%; vertical-align: middle;">
+<img src="https://raw.githubusercontent.com/piebro/signal-mcp-client/main/assets/generate_image_chat_screenshot.png" width="22%" style="padding: 1% 1% 1% 1%; vertical-align: middle;">
+<img src="https://raw.githubusercontent.com/piebro/signal-mcp-client/main/assets/vlc_chat_screenshot.png" width="22%" style="padding: 1% 1% 1% 1%; vertical-align: middle;">
+</p>
 
 ## Setup and start the Signal Chat Bot
 
-These Instructions are for Linux. With some minor modification this should also work on a Mac or Windows.
+These Instructions are for Ubuntu Linux. With some minor modification this should also work on other Linux Distros, Mac or Windows.
 I recommend to use an extra phone number for the bot, so you don't have to use your own.
 
 1. Install [uv](https://docs.astral.sh/uv/) and [podman](https://podman.io/):
